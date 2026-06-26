@@ -1,0 +1,37 @@
+---
+// src/pages/index.astro
+// 首页：列出 blog 集合里的所有文章，按发布日期倒序。
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog')).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+// base 路径（部署到 GitHub Pages 子路径时，链接必须带这个前缀，否则 404）
+const base = import.meta.env.BASE_URL;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Claude Code 入门与实践</title>
+  </head>
+  <body>
+    <main style="font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7;">
+      <h1>Claude Code 入门与实践</h1>
+      <p style="color: #666;">进阶内容 · 中文</p>
+
+      <ul style="list-style: none; padding: 0; margin-top: 1.5rem;">
+        {posts.map((post) => (
+          <li style="margin: 1rem 0; padding: 1rem 1.2rem; border: 1px solid #e5e5e5; border-radius: 8px;">
+            <a href={`${base}blog/${post.id}/`} style="text-decoration: none; color: #222; font-size: 1.15rem; font-weight: 600;">
+              {post.data.title}
+            </a>
+            <p style="color: #888; margin: 0.4rem 0 0; font-size: 0.92rem;">{post.data.description}</p>
+          </li>
+        ))}
+      </ul>
+    </main>
+  </body>
+</html>
