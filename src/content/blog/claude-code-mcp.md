@@ -82,6 +82,33 @@ claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem ~/mc
 
 > 💡 这个「只允许访问指定目录」就是 MCP 的安全核心——它有个叫 `validatePath` 的机制，所有访问都会先检查「这个路径在不在允许范围内」，越界直接拒绝。你不是把整个电脑交给 Claude，是只开了一个房间。
 
+#### ⚠️ Windows 用户注意：我踩过的坑，你别再踩
+
+上面那条 `claude mcp add` 命令，在 Mac/Linux 上能直接跑。但我在 **Windows + Git Bash** 上配的时候，**连踩五个坑**。逐个列给你，附解法——遇到任何一个都能查到怎么办。
+
+| # | 你会撞上的现象 | 根因 | 解法 |
+|---|--------------|------|------|
+| 1 | 命令敲完，`claude mcp list` 里**没有** filesystem | 路径写成了 `/mcp-demo`（不存在，且 Unix 风格） | 用真实存在的 Windows 路径，如 `D:/mcp-demo` |
+| 2 | 注册成功，但 `claude mcp get filesystem` 显示命令是 `cmd C:/ npx ... D:mcp-demo`（**反斜杠和 `/c` 都被吃掉了**） | Git Bash 把 `/c` 当 Unix 路径转换、把 `\` 当转义符吞掉 | 命令前加 `MSYS_NO_PATHCONV=1`，路径用正斜杠 `D:/...` |
+| 3 | 在 A 目录配好了，换到 B 目录重启后**MCP 消失了** | 默认是 **local 作用域**，只绑当前项目 | 加 `-s user` 改成 user 作用域，全项目可用 |
+| 4 | 让 Claude 读文件，它报 `Access denied - path outside allowed directories` | 你给的路径不在当初 `add` 时授权的目录里 | 确认路径和 `add` 时的一致；要改范围见下一节 |
+| 5 | npx 启动 server 失败 / 找不到命令 | Windows 上有时需要 `cmd /c` 前缀包一层 | 命令写成 `cmd /c npx -y ...` |
+
+**最终能直接跑通的命令**（Windows + Git Bash，把上面五个坑全绕过去了）：
+
+```bash
+MSYS_NO_PATHCONV=1 claude mcp add filesystem -s user -- cmd /c npx -y @modelcontextprotocol/server-filesystem "D:/mcp-demo"
+```
+
+拆开看这五个修复分别藏在哪：
+- `MSYS_NO_PATHCONV=1` —— 禁用 Git Bash 的路径转换（坑 2）
+- `-s user` —— 改成 user 作用域，换目录不丢（坑 3）
+- `cmd /c npx` —— Windows 用 cmd 包一层（坑 5）
+- `"D:/mcp-demo"` —— 真实存在的 Windows 路径，用正斜杠（坑 1、2）
+- 给错路径会被 `Access denied` 拦下——那是 MCP 的安全边界在工作（坑 4，其实是好事）
+
+> 💡 **如果你不用 Git Bash，而是用 PowerShell 或 cmd**：不需要 `MSYS_NO_PATHCONV=1`（那是 Git Bash 专属），`cmd /c` 也不需要。直接 `claude mcp add filesystem -s user -- npx -y @modelcontextprotocol/server-filesystem "D:\mcp-demo"` 就行。反斜杠在 PowerShell/cmd 里是安全的。
+
 ### 第 4 步：重启 Claude Code，让配置生效
 
 MCP 配置加载在启动时。**退出当前 Claude Code，重新打开**，新的 MCP 才会被加载。
